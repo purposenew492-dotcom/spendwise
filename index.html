@@ -9,6 +9,10 @@
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <title>SpendWise</title>
+<!-- Firebase SDK (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
   :root {
     --bg: #060612;
@@ -90,6 +94,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 16px;
+  }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
   .logo {
     display: flex;
@@ -119,6 +129,125 @@
     font-size: 13px;
     color: var(--text2);
     font-weight: 500;
+  }
+
+  /* ─── Auth UI ─── */
+  .auth-btn {
+    padding: 8px 14px;
+    background: rgba(74,124,255,0.12);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(74,124,255,0.2);
+    border-radius: 12px;
+    color: var(--blue2);
+    font-family: 'Archivo', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .auth-btn:hover {
+    background: rgba(74,124,255,0.2);
+    border-color: rgba(74,124,255,0.35);
+    box-shadow: 0 4px 12px rgba(74,124,255,0.15);
+    transform: translateY(-1px);
+  }
+  .auth-btn:active {
+    transform: scale(0.95);
+  }
+
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--blue));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    color: white;
+    flex-shrink: 0;
+  }
+  .user-avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  .user-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    background: rgba(10, 10, 28, 0.95);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 8px 0;
+    min-width: 160px;
+    z-index: 1000;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    display: none;
+  }
+  .user-menu.open {
+    display: block;
+  }
+  .user-menu button {
+    width: 100%;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    color: var(--text2);
+    font-family: 'Archivo', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s ease;
+  }
+  .user-menu button:hover {
+    background: rgba(255,255,255,0.05);
+    color: var(--text);
+  }
+  .user-menu button:active {
+    background: rgba(255,255,255,0.1);
+  }
+  .user-menu .divider {
+    height: 1px;
+    background: rgba(255,255,255,0.05);
+    margin: 4px 0;
+  }
+
+  .sync-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px rgba(52,211,153,0.5);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .sync-indicator.syncing {
+    background: var(--blue);
+    box-shadow: 0 0 8px rgba(74,124,255,0.5);
+    animation: pulse 0.8s ease-in-out infinite;
+  }
+  .sync-indicator.error {
+    background: var(--red);
+    box-shadow: 0 0 8px rgba(248,113,113,0.5);
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
   }
 
   /* ─── Balance Hero ─── */
@@ -886,6 +1015,25 @@
 
 <script>
 // ═══════════════════════════════════════
+//  FIREBASE INIT
+// ═══════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyBmcEzw-6Nk_xN9oHRJ8saN2GXiEzBZGwA",
+  authDomain: "spendwise-13eba.firebaseapp.com",
+  projectId: "spendwise-13eba",
+  storageBucket: "spendwise-13eba.firebasestorage.app",
+  messagingSenderId: "585971002073",
+  appId: "1:585971002073:web:2a0fcffeb060f23058acc8"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+let firestoreUnsubscribe = null;
+let firebaseSaveTimeout = null;
+
+// ═══════════════════════════════════════
 //  DATA
 // ═══════════════════════════════════════
 const CATEGORIES = [
@@ -905,7 +1053,34 @@ function load() {
   try { return JSON.parse(localStorage.getItem('sw_data')) || { tx: [], budgets: {} }; }
   catch { return { tx: [], budgets: {} }; }
 }
-function save() { localStorage.setItem('sw_data', JSON.stringify(DATA)); }
+
+function save() {
+  // Always save to localStorage
+  localStorage.setItem('sw_data', JSON.stringify(DATA));
+
+  // If user is signed in, also save to Firestore (debounced)
+  if (state.user && state.user.uid) {
+    clearTimeout(firebaseSaveTimeout);
+    state.syncStatus = 'syncing';
+    if (!state.suppressRender) render();
+
+    firebaseSaveTimeout = setTimeout(() => {
+      saveToFirestore();
+    }, 300);
+  }
+}
+
+async function saveToFirestore() {
+  try {
+    await db.collection('users').doc(state.user.uid).collection('data').doc('main').set(DATA);
+    state.syncStatus = 'synced';
+    if (!state.suppressRender) render();
+  } catch (err) {
+    console.error('Firestore save error:', err);
+    state.syncStatus = 'error';
+    if (!state.suppressRender) render();
+  }
+}
 
 let DATA = load();
 let state = {
@@ -914,6 +1089,9 @@ let state = {
   selectedCat: '',
   editingId: null,
   editingText: '',
+  user: null,
+  syncStatus: 'idle',
+  suppressRender: false,
 };
 
 // ─── Helpers ───
@@ -972,6 +1150,109 @@ function cancelEdit() {
 }
 
 // ═══════════════════════════════════════
+//  FIREBASE AUTH
+// ═══════════════════════════════════════
+function firebaseSignIn() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  firebase.auth()
+    .signInWithPopup(provider)
+    .catch(err => {
+      console.error('Sign in error:', err);
+      toast('Sign in failed');
+    });
+}
+
+function firebaseSignOut() {
+  firebase.auth()
+    .signOut()
+    .catch(err => {
+      console.error('Sign out error:', err);
+      toast('Sign out failed');
+    });
+}
+
+function toggleUserMenu() {
+  const menu = document.getElementById('user-menu');
+  if (menu) {
+    menu.classList.toggle('open');
+  }
+}
+
+// Close menu when clicking outside
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('user-menu');
+  const userInfo = e.target.closest('.user-info');
+  if (menu && !userInfo) {
+    menu.classList.remove('open');
+  }
+});
+
+// Set up auth state listener
+firebase.auth().onAuthStateChanged(async (user) => {
+  if (user) {
+    state.user = {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+    };
+
+    // Load data from Firestore
+    try {
+      const docSnap = await db.collection('users').doc(user.uid).collection('data').doc('main').get();
+      if (docSnap.exists) {
+        const firestoreData = docSnap.data();
+        // Merge Firestore data with local data (Firestore takes precedence)
+        DATA = firestoreData || DATA;
+        localStorage.setItem('sw_data', JSON.stringify(DATA));
+      }
+    } catch (err) {
+      console.error('Firestore load error:', err);
+    }
+
+    // Set up real-time listener for future changes
+    if (firestoreUnsubscribe) firestoreUnsubscribe();
+
+    firestoreUnsubscribe = db
+      .collection('users')
+      .doc(user.uid)
+      .collection('data')
+      .doc('main')
+      .onSnapshot(
+        (docSnap) => {
+          if (docSnap.exists) {
+            const firestoreData = docSnap.data();
+            // Only update if the data is newer (to avoid updating from our own saves)
+            if (firestoreData) {
+              DATA = firestoreData;
+              localStorage.setItem('sw_data', JSON.stringify(DATA));
+              state.syncStatus = 'synced';
+              render();
+            }
+          }
+          state.syncStatus = 'synced';
+        },
+        (err) => {
+          console.error('Firestore listener error:', err);
+          state.syncStatus = 'error';
+          render();
+        }
+      );
+
+    state.syncStatus = 'synced';
+  } else {
+    state.user = null;
+    if (firestoreUnsubscribe) {
+      firestoreUnsubscribe();
+      firestoreUnsubscribe = null;
+    }
+    state.syncStatus = 'idle';
+  }
+
+  render();
+});
+
+// ═══════════════════════════════════════
 //  RENDER
 // ═══════════════════════════════════════
 function render() {
@@ -989,7 +1270,26 @@ function render() {
         <div class="logo-icon">S</div>
         <div class="logo-text">SpendWise</div>
       </div>
-      <div class="header-date">${dayName()}</div>
+      <div class="header-right">
+        ${state.syncStatus !== undefined ? `<div class="sync-indicator ${state.syncStatus === 'syncing' ? 'syncing' : state.syncStatus === 'error' ? 'error' : ''}"></div>` : ''}
+        <div class="header-date">${dayName()}</div>
+        ${!state.user ? `
+          <button class="auth-btn" onclick="firebaseSignIn()">
+            <span>📱</span>
+            <span>Sign in</span>
+          </button>
+        ` : `
+          <div class="user-info" style="position:relative">
+            <div class="user-avatar" onclick="toggleUserMenu()">${state.user.photoURL ? `<img src="${state.user.photoURL}" alt="">` : state.user.displayName?.charAt(0) || 'U'}</div>
+            <div class="user-menu" id="user-menu">
+              <div style="padding:8px 16px;font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Signed in as</div>
+              <div style="padding:8px 16px;font-size:13px;color:var(--text)">${state.user.displayName || state.user.email}</div>
+              <div class="divider"></div>
+              <button onclick="firebaseSignOut()">Sign out</button>
+            </div>
+          </div>
+        `}
+      </div>
     </div>
 
     <!-- BALANCE HERO -->

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spendwise-v1';
+const CACHE_NAME = 'spendwise-v2';
 const ASSETS = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
@@ -16,6 +16,13 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  // Let Firebase SDK and API calls go through network
+  if (e.request.url.includes('googleapis.com') ||
+      e.request.url.includes('gstatic.com') ||
+      e.request.url.includes('firebaseapp.com') ||
+      e.request.url.includes('firestore.googleapis.com')) {
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then(r => r || fetch(e.request))
   );
