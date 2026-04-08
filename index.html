@@ -2561,12 +2561,6 @@ function getAutoCategory(note) {
   return '';
 }
 
-  if (!DATA.bills) DATA.bills = [];
-  if (!DATA.streaks) DATA.streaks = { currentStreak: 0, bestStreak: 0, noSpendDays: 0, lastCheckedDate: '' };
-  if (!DATA.bankBalance) DATA.bankBalance = { amount: 0, lastUpdated: '' };
-  if (!DATA.impulseItems) DATA.impulseItems = [];
-  if (DATA.impulseSaved === undefined) DATA.impulseSaved = 0;
-
 // ═════════════════════════════════════════
 // BATCH 1: TODAY VIEW & QUICK LOG FUNCTIONS
 // ═════════════════════════════════════════
@@ -3725,6 +3719,12 @@ function load() {
     if (!data.keywordMap) data.keywordMap = {};
     if (!data.goals) data.goals = [];
     if (!data.allocations) data.allocations = [];
+    if (!data.bills) data.bills = [];
+    if (!data.streaks) data.streaks = { currentStreak: 0, bestStreak: 0, noSpendDays: 0, lastCheckedDate: '' };
+    if (!data.bankBalance) data.bankBalance = { amount: 0, lastUpdated: '' };
+    if (!data.impulseItems) data.impulseItems = [];
+    if (data.impulseSaved === undefined) data.impulseSaved = 0;
+    if (!data.balance) data.balance = 0;
     return data;
   }
   catch {
